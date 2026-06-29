@@ -89,7 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (_) {}
     setSession(null);
     setProfile(null);
     sessionRef.current = null;
@@ -111,11 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     if (result.type !== 'success' || !result.url) return null;
 
+    if (!result.url.includes('code=')) return null;
+
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
     if (sessionError) {
+      await new Promise(r => setTimeout(r, 500));
       const { data: { session: current } } = await supabase.auth.getSession();
-      if (current) return null;
-      return sessionError.message;
+      if (!current) return sessionError.message;
     }
     return null;
   }
@@ -131,11 +135,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     if (result.type !== 'success' || !result.url) return null;
 
+    if (!result.url.includes('code=')) return null;
+
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
     if (sessionError) {
+      await new Promise(r => setTimeout(r, 500));
       const { data: { session: current } } = await supabase.auth.getSession();
-      if (current) return null;
-      return sessionError.message;
+      if (!current) return sessionError.message;
     }
     return null;
   }
