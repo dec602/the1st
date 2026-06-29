@@ -1,7 +1,11 @@
 import { router } from 'expo-router';
-import { FlatList, Image, Platform, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Platform, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 
 import { BrandColors, Colors } from '@/constants/theme';
+import { PREMIUM_CATEGORIES } from '@/constants/categories';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/store/auth';
 import { useProducts, type Product } from '@/store/products';
 
 const MOCK_PRODUCTS: Product[] = [
@@ -15,15 +19,30 @@ const MOCK_PRODUCTS: Product[] = [
   { id: 'm8', title: '러닝화 나이키 줌X 270mm', price: 65000, location: '서현동', timeAgo: '어제', chatCount: 0, likeCount: 1, category: '스포츠·레저' },
   { id: 'm9', title: '아이패드 미니 6세대 64GB 와이파이', price: 520000, location: '미금동', timeAgo: '2일 전', chatCount: 4, likeCount: 9, category: '디지털기기' },
   { id: 'm10', title: '캠핑 의자 2개 세트 헬리녹스 스타일', price: 45000, location: '이매동', timeAgo: '3일 전', chatCount: 2, likeCount: 6, category: '스포츠·레저' },
+  { id: 'm11', title: '[개념노트] 알고리즘 핵심 개념 정리 PDF', price: 15000, location: '분당동', timeAgo: '1일 전', chatCount: 0, likeCount: 3, category: '개념노트' },
+  { id: 'm12', title: '[개념노트] 자료구조 A to Z 완벽 정리', price: 20000, location: '서현동', timeAgo: '2일 전', chatCount: 1, likeCount: 7, category: '개념노트' },
 ];
 
 function formatPrice(price: number) {
   return price > 0 ? price.toLocaleString('ko-KR') + '원' : '가격 미정';
 }
 
-function ProductItem({ item }: { item: Product }) {
+type ProductItemProps = {
+  item: Product;
+  liked: boolean;
+  onToggleLike: (productId: string, liked: boolean) => void;
+};
+
+function ProductItem({ item, liked, onToggleLike }: ProductItemProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const [localLikeCount, setLocalLikeCount] = useState(item.likeCount);
+
+  function handleLike() {
+    const next = !liked;
+    setLocalLikeCount((c) => c + (next ? 1 : -1));
+    onToggleLike(item.id, liked);
+  }
 
   return (
     <TouchableOpacity style={[styles.item, { borderBottomColor: colors.backgroundElement }]} activeOpacity={0.7}>
@@ -43,9 +62,11 @@ function ProductItem({ item }: { item: Product }) {
             {item.chatCount > 0 && (
               <Text style={[styles.count, { color: colors.textSecondary }]}>💬 {item.chatCount}</Text>
             )}
-            {item.likeCount > 0 && (
-              <Text style={[styles.count, { color: colors.textSecondary }]}>♡ {item.likeCount}</Text>
-            )}
+            <TouchableOpacity onPress={handleLike} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.count, { color: liked ? BrandColors.primary : colors.textSecondary }]}>
+                {liked ? '♥' : '♡'} {localLikeCount > 0 ? localLikeCount : ''}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -56,19 +77,62 @@ function ProductItem({ item }: { item: Product }) {
 export default function HomeScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const { userProducts, selectedCategory } = useProducts();
+  const { userProducts, loading, selectedCategory } = useProducts();
+  const { session, profile } = useAuth();
+  const isPremium = profile?.tier === 'premium';
 
-  const allProducts = [...userProducts, ...MOCK_PRODUCTS];
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!session) return;
+    supabase
+      .from('likes')
+      .select('product_id')
+      .eq('user_id', session.user.id)
+      .then(({ data }) => {
+        if (data) setLikedIds(new Set(data.map((r: { product_id: string }) => r.product_id)));
+      });
+  }, [session]);
+
+  async function handleToggleLike(productId: string, currentlyLiked: boolean) {
+    if (!session) return;
+    const userId = session.user.id;
+    if (currentlyLiked) {
+      await supabase.from('likes').delete().match({ user_id: userId, product_id: productId });
+      setLikedIds((prev) => { const next = new Set(prev); next.delete(productId); return next; });
+    } else {
+      await supabase.from('likes').insert({ user_id: userId, product_id: productId });
+      setLikedIds((prev) => new Set(prev).add(productId));
+    }
+  }
+
+  const allProducts = [...userProducts, ...MOCK_PRODUCTS].filter(
+    (p) => isPremium || !PREMIUM_CATEGORIES.includes(p.category ?? '')
+  );
   const filtered = selectedCategory === '전체'
     ? allProducts
     : allProducts.filter((p) => p.category === selectedCategory);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={BrandColors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ProductItem item={item} />}
+        renderItem={({ item }) => (
+          <ProductItem
+            item={item}
+            liked={likedIds.has(item.id)}
+            onToggleLike={handleToggleLike}
+          />
+        )}
         style={{ flex: 1 }}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
@@ -91,6 +155,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center: { justifyContent: 'center', alignItems: 'center' },
   fab: {
     position: 'absolute',
     bottom: 24,
@@ -125,7 +190,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   price: { fontSize: 15, fontWeight: '700' },
-  counts: { flexDirection: 'row', gap: 8 },
+  counts: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   count: { fontSize: 12 },
   empty: { flex: 1, alignItems: 'center', paddingTop: 80 },
   emptyText: { fontSize: 15 },

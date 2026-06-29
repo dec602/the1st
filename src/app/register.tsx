@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -20,6 +21,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PRODUCT_CATEGORIES } from '@/constants/categories';
 import { BrandColors, Colors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/store/auth';
 import { useProducts } from '@/store/products';
 
 export default function RegisterScreen() {
@@ -27,6 +30,7 @@ export default function RegisterScreen() {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
   const { addProduct } = useProducts();
+  const { session } = useAuth();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
@@ -35,6 +39,7 @@ export default function RegisterScreen() {
   const [allowOffer, setAllowOffer] = useState(false);
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const borderColor = colors.backgroundElement;
   const inputColor = colors.text;
@@ -56,14 +61,39 @@ export default function RegisterScreen() {
     }
   }
 
-  function handleSubmit() {
-    addProduct({
+  async function uploadImageToStorage(localUri: string): Promise<string | null> {
+    const ext = localUri.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const fileName = `${Date.now()}.${ext}`;
+    const res = await fetch(localUri);
+    const blob = await res.blob();
+    const { error } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, blob, { contentType: `image/${ext}`, upsert: false });
+    if (error) return null;
+    return supabase.storage.from('product-images').getPublicUrl(fileName).data.publicUrl;
+  }
+
+  async function handleSubmit() {
+    setUploading(true);
+    let remoteUri: string | undefined;
+    if (imageUri) {
+      const url = await uploadImageToStorage(imageUri);
+      if (!url) {
+        Alert.alert('업로드 실패', '사진 업로드에 실패했습니다. 다시 시도해 주세요.');
+        setUploading(false);
+        return;
+      }
+      remoteUri = url;
+    }
+    await addProduct({
       title: title.trim(),
       price: price ? parseInt(price.replace(/,/g, ''), 10) : 0,
       location: '서현동',
       category: category || undefined,
-      imageUri: imageUri ?? undefined,
+      imageUri: remoteUri,
+      userId: session?.user.id,
     });
+    setUploading(false);
     router.back();
   }
 
@@ -198,10 +228,13 @@ export default function RegisterScreen() {
       {/* 완료 버튼 */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 8, borderTopColor: borderColor, backgroundColor: colors.background }]}>
         <TouchableOpacity
-          style={[styles.submitBtn, { opacity: title.trim() ? 1 : 0.4 }]}
-          disabled={!title.trim()}
+          style={[styles.submitBtn, { opacity: title.trim() && !uploading ? 1 : 0.4 }]}
+          disabled={!title.trim() || uploading}
           onPress={handleSubmit}>
-          <Text style={styles.submitText}>완료</Text>
+          {uploading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.submitText}>완료</Text>
+          }
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

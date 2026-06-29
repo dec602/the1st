@@ -1,8 +1,8 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   SectionList,
   StyleSheet,
   Text,
@@ -70,10 +70,19 @@ export default function AdminScreen() {
 
   if (!isAdmin) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Text style={{ fontSize: 40, marginBottom: 12 }}>🚫</Text>
-        <Text style={[styles.noAccessText, { color: colors.text }]}>접근 권한이 없습니다</Text>
-        <Text style={[styles.noAccessSub, { color: colors.textSecondary }]}>관리자 계정으로 로그인하세요</Text>
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.backgroundElement }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={[styles.backIcon, { color: colors.text }]}>←</Text>
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>관리자 페이지</Text>
+          <View style={styles.backBtn} />
+        </View>
+        <View style={styles.center}>
+          <Text style={{ fontSize: 40, marginBottom: 12 }}>🚫</Text>
+          <Text style={[styles.noAccessText, { color: colors.text }]}>접근 권한이 없습니다</Text>
+          <Text style={[styles.noAccessSub, { color: colors.textSecondary }]}>관리자 계정으로 로그인하세요</Text>
+        </View>
       </View>
     );
   }
@@ -95,7 +104,7 @@ export default function AdminScreen() {
           <View style={styles.userNameRow}>
             <Text style={[styles.nickname, { color: colors.text }]}>{item.nickname}</Text>
             {item.role === 'admin' && (
-              <Text style={[styles.adminBadge, { color: BrandColors.primary }]}>👑</Text>
+              <Text style={{ color: BrandColors.primary, fontSize: 13 }}>👑</Text>
             )}
           </View>
           <Text style={[styles.email, { color: colors.textSecondary }]}>{item.email}</Text>
@@ -104,7 +113,7 @@ export default function AdminScreen() {
           style={[
             styles.tierBtn,
             { backgroundColor: isFree ? BrandColors.primary : colors.backgroundElement },
-            isPending && styles.tierBtnDisabled,
+            isPending && { opacity: 0.5 },
           ]}
           onPress={() => toggleTier(item.id, item.tier)}
           disabled={isPending}
@@ -121,44 +130,50 @@ export default function AdminScreen() {
     );
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={BrandColors.primary} />
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingBottom: insets.bottom }]}>
       {/* 헤더 */}
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.backgroundElement }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>🛡️ 관리자 페이지</Text>
-        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>전체 회원 {users.length}명</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={[styles.backIcon, { color: colors.text }]}>←</Text>
+        </TouchableOpacity>
+        <View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>🛡️ 관리자 페이지</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary, textAlign: 'center' }]}>전체 회원 {users.length}명</Text>
+        </View>
+        <View style={styles.backBtn} />
       </View>
 
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        renderItem={renderUser}
-        renderSectionHeader={({ section }) => (
-          <View style={[styles.sectionHeader, { backgroundColor: colors.backgroundElement }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
-            <View style={[styles.sectionBadge, { backgroundColor: section.isFree ? colors.backgroundElement : '#FFD700' + '33' }]}>
-              <Text style={{ fontSize: 11, color: section.isFree ? colors.textSecondary : '#B8860B', fontWeight: '600' }}>
-                {section.isFree ? '무료' : '유료'}
-              </Text>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={BrandColors.primary} />
+        </View>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderItem={renderUser}
+          renderSectionHeader={({ section }) => (
+            <View style={[styles.sectionHeader, { backgroundColor: colors.backgroundElement }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
+              <View style={[styles.sectionBadge, {
+                backgroundColor: section.isFree ? colors.backgroundElement : '#FFD70033',
+              }]}>
+                <Text style={{ fontSize: 11, color: section.isFree ? colors.textSecondary : '#B8860B', fontWeight: '600' }}>
+                  {section.isFree ? '무료' : '유료'}
+                </Text>
+              </View>
             </View>
-          </View>
-        )}
-        stickySectionHeadersEnabled
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={[{ color: colors.textSecondary, fontSize: 15 }]}>회원이 없습니다</Text>
-          </View>
-        }
-      />
+          )}
+          stickySectionHeadersEnabled
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>회원이 없습니다</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -169,13 +184,17 @@ const styles = StyleSheet.create({
   noAccessText: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
   noAccessSub: { fontSize: 14 },
   header: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 2,
   },
-  headerTitle: { fontSize: 20, fontWeight: '800' },
-  headerSub: { fontSize: 13 },
+  backBtn: { width: 44, alignItems: 'center' },
+  backIcon: { fontSize: 22 },
+  headerTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  headerSub: { fontSize: 12 },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -184,11 +203,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   sectionTitle: { fontSize: 14, fontWeight: '700' },
-  sectionBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
+  sectionBadge: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   list: { paddingBottom: 24 },
   userRow: {
     flexDirection: 'row',
@@ -201,7 +216,6 @@ const styles = StyleSheet.create({
   userInfo: { flex: 1, gap: 2 },
   userNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   nickname: { fontSize: 15, fontWeight: '600' },
-  adminBadge: { fontSize: 13 },
   email: { fontSize: 12 },
   tierBtn: {
     borderRadius: 8,
@@ -211,7 +225,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tierBtnDisabled: { opacity: 0.5 },
   tierBtnText: { fontSize: 12, fontWeight: '700' },
   emptyBox: { paddingTop: 60, alignItems: 'center' },
 });
