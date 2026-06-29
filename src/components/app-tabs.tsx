@@ -1,12 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useColorScheme } from 'react-native';
+import { ColorValue, useColorScheme } from 'react-native';
 
 import DanggunHeader from '@/components/DanggunHeader';
 import { BrandColors, Colors } from '@/constants/theme';
 
-function TabIcon({ name, color, size = 24 }: { name: string; color: string; size?: number }) {
-  return <SymbolView name={name as any} size={size} tintColor={color} />;
+function TabIcon({ name, color, size = 24 }: { name: React.ComponentProps<typeof Ionicons>['name']; color: string | ColorValue; size?: number }) {
+  return <Ionicons name={name} size={size} color={color as string} />;
 }
 
 export default function AppTabs() {
@@ -26,37 +26,35 @@ export default function AppTabs() {
         name="index"
         options={{
           title: '홈',
-          tabBarIcon: ({ color }) => <TabIcon name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
         }}
       />
       <Tabs.Screen
         name="community"
         options={{
           title: '동네생활',
-          tabBarIcon: ({ color }) => <TabIcon name="text.bubble.fill" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="chatbubble-ellipses" color={color} />,
         }}
       />
       <Tabs.Screen
         name="nearby"
         options={{
           title: '내 근처',
-          tabBarIcon: ({ color }) => <TabIcon name="map.fill" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="map" color={color} />,
         }}
       />
       <Tabs.Screen
         name="chat"
         options={{
           title: '채팅',
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="bubble.left.and.bubble.right.fill" color={color} size={22} />
-          ),
+          tabBarIcon: ({ color }) => <TabIcon name="chatbubbles" color={color} size={22} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: '나의 당근',
-          tabBarIcon: ({ color }) => <TabIcon name="person.fill" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon name="person" color={color} />,
         }}
       />
       <Tabs.Screen name="explore" options={{ href: null }} />

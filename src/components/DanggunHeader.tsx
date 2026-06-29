@@ -1,4 +1,4 @@
-import { SymbolView } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,15 +17,15 @@ export default function DanggunHeader() {
       <View style={styles.inner}>
         <TouchableOpacity style={styles.locationRow}>
           <Text style={[styles.locationText, { color: colors.text }]}>서현동</Text>
-          <SymbolView name="chevron.down" size={14} tintColor={iconColor} style={styles.chevron} />
+          <Ionicons name="chevron-down" size={14} color={iconColor} style={styles.chevron} />
         </TouchableOpacity>
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.iconBtn}>
-            <SymbolView name="magnifyingglass" size={22} tintColor={iconColor} />
+            <Ionicons name="search" size={22} color={iconColor} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
-            <SymbolView name="bell" size={22} tintColor={iconColor} />
+            <Ionicons name="notifications-outline" size={22} color={iconColor} />
           </TouchableOpacity>
         </View>
       </View>
