@@ -102,6 +102,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(await fetchProfile(sessionRef.current.user.id));
   }
 
+  async function handleOAuthRedirect(url: string): Promise<string | null> {
+    // implicit flow: tokens arrive in hash fragment (#access_token=...&refresh_token=...)
+    if (url.includes('access_token=')) {
+      const fragment = url.split('#')[1] ?? url.split('?')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token') ?? '';
+      if (access_token) {
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+        return error?.message ?? null;
+      }
+    }
+    // pkce fallback: code in query string
+    if (url.includes('code=')) {
+      const { error } = await supabase.auth.exchangeCodeForSession(url);
+      if (error) {
+        await new Promise(r => setTimeout(r, 500));
+        const { data: { session: current } } = await supabase.auth.getSession();
+        if (!current) return error.message;
+      }
+    }
+    return null;
+  }
+
   async function signInWithGoogle(): Promise<string | null> {
     const redirectTo = Linking.createURL('/');
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -113,15 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     if (result.type !== 'success' || !result.url) return null;
 
-    if (!result.url.includes('code=')) return null;
-
-    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
-    if (sessionError) {
-      await new Promise(r => setTimeout(r, 500));
-      const { data: { session: current } } = await supabase.auth.getSession();
-      if (!current) return sessionError.message;
-    }
-    return null;
+    return handleOAuthRedirect(result.url);
   }
 
   async function signInWithKakao(): Promise<string | null> {
@@ -135,15 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
     if (result.type !== 'success' || !result.url) return null;
 
-    if (!result.url.includes('code=')) return null;
-
-    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
-    if (sessionError) {
-      await new Promise(r => setTimeout(r, 500));
-      const { data: { session: current } } = await supabase.auth.getSession();
-      if (!current) return sessionError.message;
-    }
-    return null;
+    return handleOAuthRedirect(result.url);
   }
 
   return (
