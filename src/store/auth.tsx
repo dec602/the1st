@@ -90,6 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    sessionRef.current = null;
   }
 
   async function refreshProfile() {
@@ -109,7 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (result.type !== 'success' || !result.url) return null;
 
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
-    return sessionError?.message ?? null;
+    if (sessionError) {
+      const { data: { session: current } } = await supabase.auth.getSession();
+      if (current) return null;
+      return sessionError.message;
+    }
+    return null;
   }
 
   async function signInWithKakao(): Promise<string | null> {
@@ -124,7 +132,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (result.type !== 'success' || !result.url) return null;
 
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
-    return sessionError?.message ?? null;
+    if (sessionError) {
+      const { data: { session: current } } = await supabase.auth.getSession();
+      if (current) return null;
+      return sessionError.message;
+    }
+    return null;
   }
 
   return (
