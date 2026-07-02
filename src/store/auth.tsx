@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from '@/lib/supabase';
 
@@ -89,12 +90,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    console.log('[signOut] ===== 로그아웃 시작 =====');
+    console.log('[signOut] 현재 세션 user:', sessionRef.current?.user?.id ?? 'none');
+    console.log('[signOut] provider:', sessionRef.current?.user?.app_metadata?.provider ?? 'unknown');
+
     try {
-      await supabase.auth.signOut({ scope: 'local' });
-    } catch (_) {}
+      const keysBefore = await AsyncStorage.getAllKeys();
+      const authKeysBefore = keysBefore.filter((k) => k.includes('auth') || k.includes('supabase') || k.startsWith('sb-'));
+      console.log('[signOut] AsyncStorage 세션 키 (before):', authKeysBefore);
+    } catch (e) {
+      console.log('[signOut] AsyncStorage 키 조회 실패(before):', e);
+    }
+
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.log('[signOut] supabase.auth.signOut 에러:', error.message, error);
+      } else {
+        console.log('[signOut] supabase.auth.signOut 성공');
+      }
+    } catch (e) {
+      console.log('[signOut] supabase.auth.signOut 예외:', e);
+    }
+
     setSession(null);
     setProfile(null);
     sessionRef.current = null;
+    console.log('[signOut] React state (session/profile/ref) 초기화 완료');
+
+    try {
+      const keysAfter = await AsyncStorage.getAllKeys();
+      const authKeysAfter = keysAfter.filter((k) => k.includes('auth') || k.includes('supabase') || k.startsWith('sb-'));
+      console.log('[signOut] AsyncStorage 세션 키 (after):', authKeysAfter);
+      const { data } = await supabase.auth.getSession();
+      console.log('[signOut] 로그아웃 후 getSession 잔존 세션:', data.session?.user?.id ?? 'none');
+    } catch (e) {
+      console.log('[signOut] 로그아웃 후 확인 실패:', e);
+    }
+    console.log('[signOut] ===== 로그아웃 종료 =====');
   }
 
   async function refreshProfile() {

@@ -44,8 +44,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "d6f3b74a-e9b6-4274-92ea-a2ed2ed8a56c"
+        "projectId": "ba38a629-15fd-47c7-b111-d86af2ed0af7"
       }
-    }
+    },
+    "owner": "shindongkyu"
   }
 }
